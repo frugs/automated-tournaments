@@ -1,0 +1,3 @@
+pyrebase
+aiohttp
+discord.py
