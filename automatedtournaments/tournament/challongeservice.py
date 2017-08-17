@@ -17,13 +17,19 @@ class ChallongeService:
         self._challonge_subdomain = challonge_subdomain
         self._challonge_api_key = challonge_api_key
 
+    async def get_tournament_data(self, tournament_id: str):
+        url = BASE_URL + "/tournaments/" + self._challonge_subdomain + "-" + tournament_id + ".json"
+        query_params = {"api_key": self._challonge_api_key}
+        async with self._web_client.get(url, params=query_params) as resp:
+            return await resp.json()
+
     async def does_tournament_exist(self, tournament_id: str) -> bool:
-        tournament_data = await self._get_tournament_data(tournament_id)
+        tournament_data = await self.get_tournament_data(tournament_id)
 
         return "tournament" in tournament_data
 
     async def has_tournament_started(self, tournament_id: str) -> bool:
-        tournament_data = await self._get_tournament_data(tournament_id)
+        tournament_data = await self.get_tournament_data(tournament_id)
 
         if "tournament" not in tournament_data:
             return False
@@ -31,7 +37,7 @@ class ChallongeService:
         return bool(tournament_data["tournament"].get("started_at", None))
 
     async def has_tournament_finished(self, tournament_id: str) -> bool:
-        tournament_data = await self._get_tournament_data(tournament_id)
+        tournament_data = await self.get_tournament_data(tournament_id)
 
         if "tournament" not in tournament_data:
             return False
@@ -50,6 +56,15 @@ class ChallongeService:
         query_params.update(tournament_settings)
 
         async with self._web_client.post(url, params=query_params) as _:
+            pass
+
+    async def destroy_tournament(self, tournament_id: str) -> None:
+        url = BASE_URL + "/tournaments/" + self._challonge_subdomain + "-" + tournament_id + ".json"
+        query_params = {
+            "api_key": self._challonge_api_key,
+        }
+
+        async with self._web_client.delete(url, params=query_params) as _:
             pass
 
     async def start_tournament(self, tournament_id: str) -> None:
@@ -195,18 +210,8 @@ class ChallongeService:
         async with self._web_client.put(url, params=query_params) as _:
             pass
 
-    async def _get_tournament_data(self, tournament_id: str):
-        url = BASE_URL + "/tournaments/" + self._challonge_subdomain + "-" + tournament_id + ".json"
-        query_params = {"api_key": self._challonge_api_key}
-        async with self._web_client.get(url, params=query_params) as resp:
-            return await resp.json()
-
     async def _get_participant_id(self, tournament_id: str, discord_id: str) -> str:
-        url = BASE_URL + "/tournaments/" + self._challonge_subdomain + "-" + tournament_id + "/participants.json"
-        query_params = {"api_key": self._challonge_api_key}
-
-        async with self._web_client.get(url, params=query_params) as resp:
-            participants = await resp.json()
+        participants = await self.get_participants_in_tournament(tournament_id)
 
         participant_id = ""
         for participant in participants:
@@ -215,3 +220,34 @@ class ChallongeService:
                 break
 
         return participant_id
+
+    async def get_participants_in_tournament(self, tournament_id) -> List[dict]:
+        url = BASE_URL + "/tournaments/" + self._challonge_subdomain + "-" + tournament_id + "/participants.json"
+        query_params = {"api_key": self._challonge_api_key}
+        async with self._web_client.get(url, params=query_params) as resp:
+            participants = await resp.json()
+
+        for participant in participants:
+            participant_inner = participant["participant"]
+            participant_inner["discord_id"] = participant_inner.get("misc", "")
+
+        return participants
+
+    async def get_matches_in_tournament(self, tournament_id: str) -> List:
+        url = BASE_URL + "/tournaments/" + self._challonge_subdomain + "-" + tournament_id + "/matches.json"
+        query_params = {"api_key": self._challonge_api_key}
+        async with self._web_client.get(url, params=query_params) as resp:
+            matches = await resp.json()
+
+        participants = await self.get_participants_in_tournament(tournament_id)
+        discord_id_lookup = dict(
+            (participant["participant"]["id"], participant["participant"]["misc"])
+            for participant
+            in participants)
+
+        for match in matches:
+            match_inner = match["match"]
+            match_inner["player1_discord_id"] = discord_id_lookup.get(match_inner["player1_id"], None)
+            match_inner["player2_discord_id"] = discord_id_lookup.get(match_inner["player2_id"], None)
+
+        return matches

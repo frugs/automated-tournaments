@@ -1,6 +1,9 @@
+import asyncio
 import discord
 import aiohttp
+import aiohttp.web
 
+from discord import ChannelType
 from automatedtournaments import UserDatabase
 
 ERROR_REASONS = {
@@ -21,12 +24,17 @@ class TournamentBot:
             discord_client: discord.Client,
             web_client: aiohttp.ClientSession,
             user_database: UserDatabase,
-            tournament_app_base_url: str):
+            tournament_app_base_url: str,
+            web_app_port: int):
         self._bot_token = bot_token
         self._discord_client = discord_client
         self._web_client = web_client
         self._user_database = user_database
         self._tournament_app_base_url = tournament_app_base_url
+        self._web_app = aiohttp.web.Application()
+        self._web_app_port = web_app_port
+
+        self._web_app.router.add_post("/announce", self.make_announcement)
 
         _command_lookup = [
             (func.replace("handle_", ""), getattr(self, func))
@@ -51,7 +59,7 @@ class TournamentBot:
                 if self._discord_client.user.mention in message.content:
                     await self.handle_help(message)
 
-    async def handle_help(self, message: discord.Message):
+    async def handle_help(self, message: discord.Message) -> None:
         await self._discord_client.send_message(
             message.channel,
             "Hi there, I'm {}! I'm here to manage automated tournaments for you.  I'll post a message to let you know "
@@ -67,7 +75,7 @@ class TournamentBot:
             "*;tournament* - Shows a link to the challonge page of the currently open tournament if there is one, or "
             "the last completed one otherwise.".format(self._discord_client.user.mention))
 
-    async def handle_register(self, message: discord.Message):
+    async def handle_register(self, message: discord.Message) -> None:
         split_message = message.content.split(" ")
         if len(split_message) < 2:
             return
@@ -80,7 +88,7 @@ class TournamentBot:
             message.channel,
             "Registered challonge username **{}** for {}".format(challonge_id, message.author.mention))
 
-    async def handle_signup(self, message: discord.Message):
+    async def handle_signup(self, message: discord.Message) -> None:
         async with self._web_client.post(self._tournament_app_base_url + "/signup/" + message.author.id) as resp:
             resp_data = await resp.json()
 
@@ -88,33 +96,65 @@ class TournamentBot:
             reply = "Sorry, I couldn't sign you up!\n"
             reply += ERROR_REASONS.get(resp_data["error"], "")
         else:
-            reply = "I've successfully signed you up to the tournament! Good luck 🙂"
+            reply = "{} I've successfully signed you up to the tournament! Good luck 🙂".format(message.author.mention)
 
         await self._discord_client.send_message(message.channel, reply)
 
-    async def handle_victory(self, message: discord.Message):
+    async def handle_victory(self, message: discord.Message) -> None:
         async with self._web_client.post(self._tournament_app_base_url + "/victory/" + message.author.id) as resp:
             resp_data = await resp.json()
 
         if resp_data and "error" in resp_data:
-            reply = "Sorry, I couldn't record your victory.\n"
+            reply = "{} Sorry, I couldn't record your victory.\n".format(message.author.mention)
             reply += ERROR_REASONS.get(resp_data["error"], "")
         else:
-            reply = "Thank you for reporting the result, and congratulations on your victory!"
+            reply = "{} Thank you for reporting the result, and congratulations on your victory!".format(
+                message.author.mention)
 
         await self._discord_client.send_message(message.channel, reply)
 
-    async def handle_loss(self, message: discord.Message):
+    async def handle_loss(self, message: discord.Message) -> None:
         async with self._web_client.post(self._tournament_app_base_url + "/loss/" + message.author.id) as resp:
             resp_data = await resp.json()
 
         if resp_data and "error" in resp_data:
-            reply = "Sorry, I couldn't record your loss.\n"
+            reply = "{} Sorry, I couldn't record your loss.\n".format(message.author.mention)
             reply += ERROR_REASONS.get(resp_data["error"], "")
         else:
-            reply = "Hard luck; I hope you fare better next time. Thank you for reporting your loss."
+            reply = "{} Hard luck; I hope you fare better next time. Thank you for reporting your loss.".format(
+                message.author.mention)
 
         await self._discord_client.send_message(message.channel, reply)
 
+    async def make_announcement(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
+        request_data = await request.json()
+
+        if not request_data:
+            return
+
+        channel_name = request_data.get("channel", "")
+
+        if not channel_name:
+            return
+
+        message = request_data.get("message", "")
+
+        if not message:
+            return
+
+        matching_channels = [
+            channel
+            for channel
+            in self._discord_client.get_all_channels()
+            if channel.name == channel_name and not channel.is_private and channel.type == ChannelType.text]
+
+        for channel in matching_channels:
+            await self._discord_client.send_message(channel, message)
+
+        return aiohttp.web.HTTPNoContent()
+
     def start(self):
-        self._discord_client.run(self._bot_token)
+        asyncio.ensure_future(self._discord_client.start(self._bot_token))
+
+        aiohttp.web.run_app(self._web_app, port=self._web_app_port)
+

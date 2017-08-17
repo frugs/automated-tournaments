@@ -20,9 +20,22 @@ class TournamentController:
 
         self._tournament_id = None
 
+    async def get_active_tournament(self) -> Tuple[dict, str]:
+        if not self._tournament_id:
+            return {}, "TOURNAMENT_NOT_CREATED"
+
+        result = await self._challonge_service.get_tournament_data(self._tournament_id)
+
+        if not result:
+            return {}, "UNKNOWN_ERROR"
+
+        return result, ""
+
     async def create_tournament(self) -> Tuple[bool, str]:
-        if self._tournament_id and not await self._challonge_service.has_tournament_finished(self._tournament_id):
-            return False, "TOURNAMENT_ONGOING"
+        if self._tournament_id:
+            if (await self._challonge_service.does_tournament_exist(self._tournament_id) and
+                    await self._challonge_service.has_tournament_finished(self._tournament_id)):
+                return False, "TOURNAMENT_ONGOING"
 
         for i in range(10):
             self._tournament_id = self._tournament_id_generator.next_id()
@@ -36,6 +49,14 @@ class TournamentController:
 
         await self._challonge_service.create_tournament(
             self._tournament_id, tournament_name, self._default_tournament_settings)
+
+        return True, ""
+
+    async def destroy_tournament(self) -> Tuple[bool, str]:
+        if not self._tournament_id:
+            return False, "TOURNAMENT_NOT_CREATED"
+
+        await self._challonge_service.destroy_tournament(self._tournament_id)
 
         return True, ""
 
@@ -189,3 +210,23 @@ class TournamentController:
             score)
 
         return True, ""
+
+    async def get_matches_in_tournament(self) -> Tuple[dict, str]:
+        if not self._tournament_id or not await self._challonge_service.does_tournament_exist(self._tournament_id):
+            return False, "TOURNAMENT_NOT_CREATED"
+
+        if not await self._challonge_service.has_tournament_started(self._tournament_id):
+            return False, "TOURNAMENT_NOT_STARTED"
+
+        if await self._challonge_service.has_tournament_finished(self._tournament_id):
+            return False, "TOURNAMENT_FINISHED"
+
+        matches = await self._challonge_service.get_matches_in_tournament(self._tournament_id)
+        return {"matches": matches}, ""
+
+    async def get_participants_in_tournament(self) -> Tuple[dict, str]:
+        if not self._tournament_id or not await self._challonge_service.does_tournament_exist(self._tournament_id):
+            return False, "TOURNAMENT_NOT_CREATED"
+
+        participants = await self._challonge_service.get_participants_in_tournament(self._tournament_id)
+        return {"participants": participants}, ""
