@@ -8,6 +8,7 @@ TOURNAMENT_BOT_BASE_URL = os.getenv("TOURNAMENTBOTBASEURL", "http://localhost:23
 TOURNAMENT_APP_BASE_URL = os.getenv("TOURNAMENTAPPBASEURL", "http://localhost:23444")
 
 ANNOUNCEMENT_CHANNEL_NAME = "events"
+SECONDARY_ANNOUNCEMENT_CHANNEL_NAME = "general"
 
 
 def is_success(status: int):
@@ -37,6 +38,7 @@ def main() -> None:
 
     loop.run_until_complete(announce_tournament(web_client, tournament_data))
 
+    asyncio.ensure_future(announce_pre_start_tournament(web_client, tournament_data, start_time))
     asyncio.ensure_future(start_tournament(web_client, tournament_data, start_time))
     asyncio.ensure_future(announce_opened_matches(web_client))
     asyncio.ensure_future(finish_tournament_once_all_matches_completed(web_client))
@@ -66,8 +68,8 @@ async def create_tournament(web_client: aiohttp.ClientSession, start_time: datet
 
 
 async def announce_tournament(web_client: aiohttp.ClientSession, tournament_data: dict) -> None:
-    tournament_name = tournament_data.get("name", "")
-    tournament_url = tournament_data.get("full_challonge_url", "")
+    tournament_name = tournament_data.get("name", "The tournament")
+    tournament_url = tournament_data.get("full_challonge_url", "the Challonge page")
 
     message = (
         "@here {} will be starting in an hour! Please sign up and participate using the *;signup* command. Please "
@@ -82,13 +84,41 @@ async def announce_tournament(web_client: aiohttp.ClientSession, tournament_data
         pass
 
 
+async def announce_pre_start_tournament(web_client, tournament_data, start_time) -> None:
+    announcement_time = start_time - datetime.timedelta(minutes=15)
+
+    while datetime.datetime.now(datetime.timezone.utc) < announcement_time:
+        await asyncio.sleep(30)
+
+    tournament_name = tournament_data.get("name", "The tournament")
+    tournament_url = tournament_data.get("full_challonge_url", "the Challonge page")
+
+    message = (
+        "{} will be starting in fifteen minutes! Please sign up and participate using the *;signup* command. Please "
+        "visit {} to see the rules, the bracket, and the list of participants.".format(
+            tournament_name, tournament_url))
+
+    async with web_client.post(TOURNAMENT_BOT_BASE_URL + "/announce", json={
+        "channel": ANNOUNCEMENT_CHANNEL_NAME,
+        "message": "@here " + message
+    }) as _:
+        pass
+
+    async with web_client.post(TOURNAMENT_BOT_BASE_URL + "/announce", json={
+        "channel": SECONDARY_ANNOUNCEMENT_CHANNEL_NAME,
+        "message": message
+    }) as _:
+        pass
+
+
 async def start_tournament(
         web_client: aiohttp.ClientSession, tournament_data: dict, start_time: datetime.datetime) -> None:
-    while datetime.datetime.now(datetime.timezone.utc) < start_time:
-        asyncio.sleep(30)
 
-    tournament_name = tournament_data.get("name", "")
-    tournament_url = tournament_data.get("full_challonge_url", "")
+    while datetime.datetime.now(datetime.timezone.utc) < start_time:
+        await asyncio.sleep(30)
+
+    tournament_name = tournament_data.get("name", "The tournament")
+    tournament_url = tournament_data.get("full_challonge_url", "the Challonge page")
 
     async with web_client.post(TOURNAMENT_APP_BASE_URL + "/start") as _:
         pass
