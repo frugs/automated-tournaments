@@ -170,12 +170,14 @@ class TournamentBot:
             started = tournament_inner.get("started_at", "")
             finished = tournament_inner.get("completed_at", "")
             tournament_name = tournament_inner.get("name", "A tournament")
+            url = tournament_inner.get("full_challonge_url", "the challonge page.")
 
             if not started:
-                reply = "{} {} is currently open for sign ups! Use the *;signup* command to enter.".format(
-                    message.author.mention, tournament_name)
+                reply = ("{} {} is currently open for sign ups! Use the *;signup* command to enter. View the currently "
+                         "entered participants at {}".format(message.author.mention, tournament_name, url))
             elif not finished:
-                reply = "{} {} is currently underway!".format(message.author.mention, tournament_name)
+                reply = "{} {} is currently underway! View the bracket at {}".format(
+                    message.author.mention, tournament_name, url)
             else:
                 reply = "{} There is currently no active tournament.".format(message.author.mention)
 

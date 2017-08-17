@@ -168,8 +168,13 @@ async def finish_tournament_once_all_matches_completed(web_client: aiohttp.Clien
 
             matches_remaining = not all(match.get("match", {}).get("state", "") == "complete" for match in matches)
 
-    async with web_client.post(TOURNAMENT_APP_BASE_URL + "/finish") as _:
-        pass
+    success = False
+
+    while not success:
+        async with web_client.post(TOURNAMENT_APP_BASE_URL + "/finish") as resp:
+            success = is_success(resp.status)
+
+        await asyncio.sleep(5)
 
 
 async def wait_till_tournament_finished(web_client: aiohttp.ClientSession) -> None:
