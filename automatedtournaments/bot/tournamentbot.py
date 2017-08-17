@@ -70,6 +70,7 @@ class TournamentBot:
             "*;signup* - Sign up to the currently open tournament. Please ensure you have registered your challonge "
             "username with me using the *:register* command before attempting to sign up.\n\n"
             "*;forfeit* - Forfeit all your remaining matches in the currently open tournament.\n\n"
+            "*;dq [@mention]* - Disqualify the mentioned player from the tournament. Please use this command sensibly."
             "*;victory* - Record a victory for your current game in the current tournament.\n\n"
             "*;loss* - Record a loss for your current game in the current tournament.\n\n"
             "*;tournament* - Shows a link to the challonge page of the currently open tournament if there is one, or "
@@ -123,6 +124,25 @@ class TournamentBot:
         else:
             reply = "{} Hard luck; I hope you fare better next time. Thank you for reporting your loss.".format(
                 message.author.mention)
+
+        await self._discord_client.send_message(message.channel, reply)
+
+    async def handle_dq(self, message: discord.Message) -> None:
+        split_message = message.content.split(" ")
+        if len(split_message) < 2:
+            return
+
+        discord_id = split_message[1].replace("<", "").replace(">", "").replace("@", "").replace("!", "")
+
+        async with self._web_client.post(self._tournament_app_base_url + "/forfeit/" + discord_id) as resp:
+            resp_data = await resp.json()
+
+        if resp_data and "error" in resp_data:
+            reply = "{} Sorry, I couldn't disqualify that player.\n".format(message.author.mention)
+            reply += ERROR_REASONS.get(resp_data["error"], "")
+        else:
+            reply = "{} Successfully disqualified <@{}>.".format(
+                message.author.mention, discord_id)
 
         await self._discord_client.send_message(message.channel, reply)
 

@@ -7,25 +7,31 @@ import aiohttp
 TOURNAMENT_BOT_BASE_URL = os.getenv("TOURNAMENTBOTBASEURL", "http://localhost:23445")
 TOURNAMENT_APP_BASE_URL = os.getenv("TOURNAMENTAPPBASEURL", "http://localhost:23444")
 
-ANNOUNCEMENT_CHANNEL_NAME = "testing"  # "events"
+ANNOUNCEMENT_CHANNEL_NAME = "events"
 
 
 def is_success(status: int):
     return 200 <= status <= 299
 
 
-def round_to_closest_hour(time: datetime.datetime) -> datetime.datetime:
-    return time
+def round_to_closest_hour(exact_time: datetime.datetime) -> datetime.datetime:
+    current_hour = exact_time.replace(minute=0, second=0, microsecond=0)
+    next_hour = (exact_time + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+
+    if next_hour - exact_time < exact_time - current_hour:
+        return next_hour
+    else:
+        return current_hour
 
 
 def main() -> None:
-    time_scheduled = datetime.datetime.utcnow()
-    start_time = round_to_closest_hour(time_scheduled + datetime.timedelta(seconds=60))
+    time_scheduled = datetime.datetime.now(datetime.timezone.utc)
+    start_time = round_to_closest_hour(time_scheduled + datetime.timedelta(hours=1))
 
     loop = asyncio.get_event_loop()
     web_client = aiohttp.ClientSession()
 
-    tournament_data = loop.run_until_complete(create_tournament(web_client))
+    tournament_data = loop.run_until_complete(create_tournament(web_client, start_time))
     if not tournament_data:
         return
 
@@ -33,7 +39,7 @@ def main() -> None:
 
     asyncio.ensure_future(start_tournament(web_client, tournament_data, start_time))
     asyncio.ensure_future(announce_opened_matches(web_client))
-    asyncio.ensure_future(finish_tournament_once_all_matches_completed(web_client, tournament_data))
+    asyncio.ensure_future(finish_tournament_once_all_matches_completed(web_client))
 
     loop.run_until_complete(wait_till_tournament_finished(web_client))
 
@@ -42,8 +48,9 @@ def main() -> None:
     web_client.close()
 
 
-async def create_tournament(web_client: aiohttp.ClientSession) -> dict:
-    async with web_client.post(TOURNAMENT_APP_BASE_URL + "/create") as resp:
+async def create_tournament(web_client: aiohttp.ClientSession, start_time: datetime.datetime) -> dict:
+    async with web_client.post(
+            TOURNAMENT_APP_BASE_URL + "/create", json={"start_time": start_time.isoformat()}) as resp:
         success = is_success(resp.status)
 
     if not success:
@@ -77,7 +84,7 @@ async def announce_tournament(web_client: aiohttp.ClientSession, tournament_data
 
 async def start_tournament(
         web_client: aiohttp.ClientSession, tournament_data: dict, start_time: datetime.datetime) -> None:
-    while datetime.datetime.utcnow() < start_time:
+    while datetime.datetime.now(datetime.timezone.utc) < start_time:
         asyncio.sleep(30)
 
     tournament_name = tournament_data.get("name", "")
@@ -147,7 +154,7 @@ async def announce_opened_matches(web_client: aiohttp.ClientSession) -> None:
                 pass
 
 
-async def finish_tournament_once_all_matches_completed(web_client: aiohttp.ClientSession, tournament_data: dict) -> None:
+async def finish_tournament_once_all_matches_completed(web_client: aiohttp.ClientSession) -> None:
     matches_remaining = True
 
     while matches_remaining:

@@ -31,10 +31,10 @@ class TournamentController:
 
         return result, ""
 
-    async def create_tournament(self) -> Tuple[bool, str]:
+    async def create_tournament(self, start_time: str) -> Tuple[bool, str]:
         if self._tournament_id:
             if (await self._challonge_service.does_tournament_exist(self._tournament_id) and
-                    await self._challonge_service.has_tournament_finished(self._tournament_id)):
+                    not await self._challonge_service.has_tournament_finished(self._tournament_id)):
                 return False, "TOURNAMENT_ONGOING"
 
         for i in range(10):
@@ -48,7 +48,7 @@ class TournamentController:
         tournament_name = self._tournament_id_generator.next_name()
 
         await self._challonge_service.create_tournament(
-            self._tournament_id, tournament_name, self._default_tournament_settings)
+            self._tournament_id, tournament_name, start_time, self._default_tournament_settings)
 
         return True, ""
 

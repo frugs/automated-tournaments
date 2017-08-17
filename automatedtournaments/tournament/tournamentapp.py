@@ -34,8 +34,16 @@ class TournamentApp(Application):
 
         return json_response(data={"error": error})
 
-    async def create(self, _: Request) -> Response:
-        status, error = await self._controller.create_tournament()
+    async def create(self, request: Request) -> Response:
+
+        if "application/json" in request.content_type:
+            request_data = await request.json()
+        else:
+            request_data = {}
+
+        start_time = request_data.get("start_time", "") if request_data else ""
+
+        status, error = await self._controller.create_tournament(start_time)
 
         if status:
             return json_response()

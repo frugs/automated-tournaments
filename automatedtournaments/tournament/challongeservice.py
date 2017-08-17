@@ -44,7 +44,9 @@ class ChallongeService:
 
         return bool(tournament_data["tournament"].get("completed_at", None))
 
-    async def create_tournament(self, tournament_id: str, tournament_name: str, tournament_settings: dict) -> None:
+    async def create_tournament(
+            self, tournament_id: str, tournament_name: str, start_time: str, tournament_settings: dict) -> None:
+
         url = BASE_URL + "/tournaments.json"
         query_params = {
             "api_key": self._challonge_api_key,
@@ -52,6 +54,9 @@ class ChallongeService:
             "tournament[url]": tournament_id,
             "tournament[subdomain]": self._challonge_subdomain
         }
+
+        if start_time:
+            query_params["tournament[start_at]"] = start_time
 
         query_params.update(tournament_settings)
 
