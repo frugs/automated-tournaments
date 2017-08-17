@@ -70,7 +70,8 @@ class TournamentBot:
             "*;signup* - Sign up to the currently open tournament. Please ensure you have registered your challonge "
             "username with me using the *:register* command before attempting to sign up.\n\n"
             "*;forfeit* - Forfeit all your remaining matches in the currently open tournament.\n\n"
-            "*;dq [@mention]* - Disqualify the mentioned player from the tournament. Please use this command sensibly."
+            "*;dq [@mention]* - Disqualify the mentioned player from the tournament. Please use this command "
+            "sensibly.\n\n"
             "*;victory* - Record a victory for your current game in the current tournament.\n\n"
             "*;loss* - Record a loss for your current game in the current tournament.\n\n"
             "*;tournament* - Shows a link to the challonge page of the currently open tournament if there is one, or "
@@ -94,7 +95,7 @@ class TournamentBot:
             resp_data = await resp.json()
 
         if resp_data and "error" in resp_data:
-            reply = "Sorry, I couldn't sign you up!\n"
+            reply = "{} Sorry, I couldn't sign you up!\n".format(message.author.mention)
             reply += ERROR_REASONS.get(resp_data["error"], "")
         else:
             reply = "{} I've successfully signed you up to the tournament! Good luck 🙂".format(message.author.mention)
