@@ -127,6 +127,18 @@ class TournamentBot:
 
         await self._discord_client.send_message(message.channel, reply)
 
+    async def handle_forfeit(self, message: discord.Message) -> None:
+        async with self._web_client.post(self._tournament_app_base_url + "/forfeit/" + message.author.id) as resp:
+            resp_data = await resp.json()
+
+        if resp_data and "error" in resp_data:
+            reply = "{} Sorry, you were unable to forfeit.\n".format(message.author.mention)
+            reply += ERROR_REASONS.get(resp_data["error"], "")
+        else:
+            reply = "{} had forfeited all their remaining sets.".format(message.author.mention)
+
+        await self._discord_client.send_message(message.channel, reply)
+
     async def handle_dq(self, message: discord.Message) -> None:
         split_message = message.content.split(" ")
         if len(split_message) < 2:
@@ -145,6 +157,30 @@ class TournamentBot:
                 message.author.mention, discord_id)
 
         await self._discord_client.send_message(message.channel, reply)
+
+    async def handle_tournament(self, message: discord.Message) -> None:
+        async with self._web_client.get(self._tournament_app_base_url + "/") as resp:
+            resp_data = await resp.json()
+
+        if not resp_data or "error" in resp_data:
+            reply = "{} Unable to get tournament details.\n".format(message.author.mention)
+            reply += ERROR_REASONS.get(resp_data.get("error", ""), "")
+        else:
+            tournament_inner = resp_data.get("tournament", "")
+            started = tournament_inner.get("started_at", "")
+            finished = tournament_inner.get("completed_at", "")
+            tournament_name = tournament_inner.get("name", "A tournament")
+
+            if not started:
+                reply = "{} {} is currently open for sign ups! Use the *;signup* command to enter.".format(
+                    message.author.mention, tournament_name)
+            elif not finished:
+                reply = "{} {} is currently underway!".format(message.author.mention, tournament_name)
+            else:
+                reply = "{} There is currently no active tournament.".format(message.author.mention)
+
+        if reply:
+            await self._discord_client.send_message(message.channel, reply)
 
     async def make_announcement(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         request_data = await request.json()
