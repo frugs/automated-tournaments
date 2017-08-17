@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 
@@ -12,8 +13,8 @@ def main():
     with open("firebase.cfg", 'rb') as db_config_file:
         db_config = pickle.load(db_config_file)
 
-    with open("challonge.cfg", 'rb') as challonge_config_file:
-        default_tournament_settings = pickle.load(challonge_config_file)
+    with open("challonge.json") as challonge_config_file:
+        default_tournament_settings = json.load(challonge_config_file)
 
     user_database = UserDatabase(db_config)
     start_tournament_app(PORT, CHALLONGE_SUBDOMAIN, CHALLONGE_API_KEY, user_database, default_tournament_settings)
