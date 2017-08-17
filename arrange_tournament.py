@@ -70,7 +70,7 @@ async def announce_tournament(web_client: aiohttp.ClientSession, tournament_data
     tournament_url = tournament_data.get("full_challonge_url", "")
 
     message = (
-        "{} will be starting in an hour! Please sign up and participate using the *;signup* command. Please "
+        "@here {} will be starting in an hour! Please sign up and participate using the *;signup* command. Please "
         "visit {} to see the rules, the bracket, and the list of participants.".format(
             tournament_name, tournament_url))
 
@@ -98,7 +98,7 @@ async def start_tournament(
 
     if resp_data.get("tournament", {}).get("started_at", None):
         message = (
-            "{} is starting now! Please check {} to find out who your opponent is.".format(
+            "@here {} is starting now! Please check {} to find out who your opponent is.".format(
                 tournament_name, tournament_url))
     else:
         async with web_client.post(TOURNAMENT_APP_BASE_URL + "/destroy") as _:
