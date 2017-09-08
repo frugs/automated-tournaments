@@ -25,12 +25,14 @@ class TournamentBot:
             web_client: aiohttp.ClientSession,
             user_database: UserDatabase,
             tournament_app_base_url: str,
+            tournament_arranger_base_url: str,
             web_app_port: int):
         self._bot_token = bot_token
         self._discord_client = discord_client
         self._web_client = web_client
         self._user_database = user_database
         self._tournament_app_base_url = tournament_app_base_url
+        self._tournament_arranger_base_url = tournament_arranger_base_url
         self._web_app = aiohttp.web.Application()
         self._web_app_port = web_app_port
 
@@ -65,6 +67,7 @@ class TournamentBot:
             "Hi there, I'm {}! I'm here to manage automated tournaments for you.  I'll post a message to let you know "
             "when a tournament is open for you to sign up to. Here are a list of the commands I can accept:\n\n"
             "*;help* - Show this help message.\n\n"
+            "*;host* - host a new tournament leaving sign-ups open for 15 minutes.\n\n"
             "*;register [challonge_username]* - Register your Challonge username with me. This is case sensitive, so "
             "make sure you have your casing correct!\n\n"
             "*;signup* - Sign up to the currently open tournament. Please ensure you have registered your challonge "
@@ -184,6 +187,13 @@ class TournamentBot:
 
         if reply:
             await self._discord_client.send_message(message.channel, reply)
+
+    async def handle_host(self, message: discord.Message) -> None:
+        reply = "{} Attempting to start a new tournament.".format(message.author.mention)
+        await self._discord_client.send_message(message.channel, reply)
+
+        async with self._web_client.post(self._tournament_arranger_base_url + "/arrange") as _:
+            pass
 
     async def make_announcement(self, request: aiohttp.web.Request) -> aiohttp.web.Response:
         request_data = await request.json()

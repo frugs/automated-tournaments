@@ -2,3 +2,5 @@ firebase.cfg
 allinbotServiceAccountCredentials.json
 challonge.json
 challonge.json
+*/__pycache__/
+*.pyc
