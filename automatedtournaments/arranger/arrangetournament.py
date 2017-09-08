@@ -39,12 +39,13 @@ class TournamentArranger:
 
         loop.run_until_complete(self.announce_tournament(web_client, tournament_data))
 
-        asyncio.ensure_future(self.announce_pre_start_tournament(web_client, tournament_data, start_time), loop=loop)
-        asyncio.ensure_future(self.start_tournament(web_client, tournament_data, start_time), loop=loop)
-        asyncio.ensure_future(self.announce_opened_matches(web_client), loop=loop)
-        asyncio.ensure_future(self.finish_tournament_once_all_matches_completed(web_client), loop=loop)
+        asyncio.ensure_future(
+            self.announce_pre_start_tournament(web_client, tournament_data, start_time, loop=loop), loop=loop)
+        asyncio.ensure_future(self.start_tournament(web_client, tournament_data, start_time, loop=loop), loop=loop)
+        asyncio.ensure_future(self.announce_opened_matches(web_client, loop=loop), loop=loop)
+        asyncio.ensure_future(self.finish_tournament_once_all_matches_completed(web_client, loop=loop), loop=loop)
 
-        loop.run_until_complete(self.wait_till_tournament_finished(web_client))
+        loop.run_until_complete(self.wait_till_tournament_finished(web_client, loop=loop))
 
         loop.run_until_complete(self.announce_champion(web_client, tournament_data))
 
@@ -95,18 +96,18 @@ class TournamentArranger:
         async with web_client.post(self.tournament_bot_base_url + "/announce", json=announcement_data) as _:
             pass
 
-    async def announce_pre_start_tournament(self, web_client, tournament_data, start_time) -> None:
+    async def announce_pre_start_tournament(self, web_client, tournament_data, start_time, loop=None) -> None:
         announcement_time = start_time - datetime.timedelta(minutes=15)
     
         while datetime.datetime.now(datetime.timezone.utc) < announcement_time:
-            await asyncio.sleep(30)
+            await asyncio.sleep(30, loop=loop)
     
         tournament_name = tournament_data.get("name", "The tournament")
         tournament_url = tournament_data.get("full_challonge_url", "the Challonge page")
     
         message = (
-            "{} will be starting in fifteen minutes! Please sign up and participate using the *;signup* command. Please "
-            "visit {} to see the rules, the bracket, and the list of participants.".format(
+            "{} will be starting in fifteen minutes! Please sign up and participate using the *;signup* command. "
+            "Please visit {} to see the rules, the bracket, and the list of participants.".format(
                 tournament_name, tournament_url))
     
         async with web_client.post(self.tournament_bot_base_url + "/announce", json={
@@ -122,10 +123,14 @@ class TournamentArranger:
             pass
     
     async def start_tournament(
-            self, web_client: aiohttp.ClientSession, tournament_data: dict, start_time: datetime.datetime) -> None:
+            self,
+            web_client: aiohttp.ClientSession,
+            tournament_data: dict,
+            start_time: datetime.datetime,
+            loop: asyncio.BaseEventLoop=None) -> None:
     
         while datetime.datetime.now(datetime.timezone.utc) < start_time:
-            await asyncio.sleep(30)
+            await asyncio.sleep(30, loop=loop)
     
         tournament_name = tournament_data.get("name", "The tournament")
         tournament_url = tournament_data.get("full_challonge_url", "the Challonge page")
@@ -153,11 +158,12 @@ class TournamentArranger:
         async with web_client.post(self.tournament_bot_base_url + "/announce", json=announcement_data) as _:
             pass
 
-    async def announce_opened_matches(self, web_client: aiohttp.ClientSession) -> None:
+    async def announce_opened_matches(
+            self, web_client: aiohttp.ClientSession, loop: asyncio.BaseEventLoop=None) -> None:
         announced_matches = set()
     
         while True:
-            await asyncio.sleep(15)
+            await asyncio.sleep(15, loop=loop)
     
             async with web_client.get(self.tournament_app_base_url + "/matches") as resp:
                 resp_data = await resp.json()
@@ -192,11 +198,12 @@ class TournamentArranger:
                 async with web_client.post(self.tournament_bot_base_url + "/announce", json=announcement_data) as _:
                     pass
 
-    async def finish_tournament_once_all_matches_completed(self, web_client: aiohttp.ClientSession) -> None:
+    async def finish_tournament_once_all_matches_completed(
+            self, web_client: aiohttp.ClientSession, loop: asyncio.BaseEventLoop=None) -> None:
         matches_remaining = True
     
         while matches_remaining:
-            await asyncio.sleep(15)
+            await asyncio.sleep(15, loop=loop)
     
             async with web_client.get(self.tournament_app_base_url + "/matches") as resp:
                 resp_data = await resp.json()
@@ -212,11 +219,14 @@ class TournamentArranger:
             async with web_client.post(self.tournament_app_base_url + "/finish") as resp:
                 success = is_success(resp.status)
     
-            await asyncio.sleep(5)
+            await asyncio.sleep(5, loop=loop)
 
-    async def wait_till_tournament_finished(self, web_client: aiohttp.ClientSession) -> None:
+    async def wait_till_tournament_finished(
+            self,
+            web_client: aiohttp.ClientSession,
+            loop: asyncio.BaseEventLoop=None) -> None:
         while True:
-            await asyncio.sleep(60)
+            await asyncio.sleep(60, loop=loop)
     
             async with web_client.get(self.tournament_app_base_url + "/") as resp:
                 resp_data = await resp.json()

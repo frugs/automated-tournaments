@@ -139,7 +139,7 @@ class TournamentBot:
             reply = "{} Sorry, you were unable to forfeit.\n".format(message.author.mention)
             reply += ERROR_REASONS.get(resp_data["error"], "")
         else:
-            reply = "{} had forfeited all their remaining sets.".format(message.author.mention)
+            reply = "{} has forfeited all their remaining sets.".format(message.author.mention)
 
         await self._discord_client.send_message(message.channel, reply)
 
