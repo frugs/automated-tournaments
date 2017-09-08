@@ -39,10 +39,10 @@ class TournamentArranger:
 
         loop.run_until_complete(self.announce_tournament(web_client, tournament_data))
 
-        asyncio.ensure_future(self.announce_pre_start_tournament(web_client, tournament_data, start_time))
-        asyncio.ensure_future(self.start_tournament(web_client, tournament_data, start_time))
-        asyncio.ensure_future(self.announce_opened_matches(web_client))
-        asyncio.ensure_future(self.finish_tournament_once_all_matches_completed(web_client))
+        asyncio.ensure_future(self.announce_pre_start_tournament(web_client, tournament_data, start_time), loop=loop)
+        asyncio.ensure_future(self.start_tournament(web_client, tournament_data, start_time), loop=loop)
+        asyncio.ensure_future(self.announce_opened_matches(web_client), loop=loop)
+        asyncio.ensure_future(self.finish_tournament_once_all_matches_completed(web_client), loop=loop)
 
         loop.run_until_complete(self.wait_till_tournament_finished(web_client))
 

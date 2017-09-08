@@ -21,5 +21,6 @@ class ArrangerApp(Application):
             TournamentArranger(
                 self.tournament_app_base_url,
                 self.tournament_bot_base_url,
-                datetime.timedelta(minutes=15),
+                datetime.timedelta(minutes=20),
                 False).arrange_tournament)
+        return Response()
